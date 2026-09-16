@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WS Browser</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  background: #16213e;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #333;
+}
+
+.toolbar input[type="text"] {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 12px;
+  background: #0f3460;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.toolbar input:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+.btn {
+  padding: 7px 14px;
+  background: #00d4ff;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  background: #00b8d9;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: #e0e0e0;
+  border: 1px solid #444;
+  font-weight: 500;
+}
+
+.settings {
+  background: #16213e;
+  padding: 8px 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  flex: 0 0 100%;
+}
+
+.settings label {
+  color: #aaa;
+}
+
+.settings .status {
+  margin-left: auto;
+  color: #ffc107;
+}
+
+.settings .status.online {
+  color: #00e676;
+}
+
+.settings .status.error {
+  color: #ff5252;
+}
+
+.urlbar {
+  flex: 1;
+}
+
+.iframe-wrap {
+  flex: 1;
+  display: flex;
+  position: relative;
+  min-height: 0;
+}
+
+iframe {
+  flex: 1;
+  border: none;
+  background: #fff;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #1a1a2e;
+  color: #aaa;
+  font-size: 15px;
+  text-align: center;
+  padding: 20px;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #333;
+  border-top-color: #00d4ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.yt-player {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #0a0a1a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.yt-player.hidden { display: none; }
+
+.yt-bar {
+  background: #16213e;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #333;
+}
+
+.yt-back {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.yt-title {
+  font-size: 14px;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yt-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 12px;
+}
+
+.yt-thumb {
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #16213e;
+}
+
+.yt-info {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.yt-quality {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.yt-quality select {
+  padding: 4px 8px;
+  background: #0f3460;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #e0e0e0;
+}
+
+.yt-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+  display: none;
+}
+
+.yt-progress-wrap.show { display: flex; }
+
+.yt-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.yt-progress {
+  height: 100%;
+  width: 0%;
+  background: #00d4ff;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.yt-progress-text {
+  font-size: 12px;
+  color: #aaa;
+  min-width: 50px;
+  text-align: right;
+}
+
+.yt-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.yt-error {
+  color: #ff5252;
+  font-size: 13px;
+  max-width: 640px;
+}
+
+.yt-video {
+  position: absolute;
+  top: 44px; left: 0; right: 0; bottom: 0;
+  background: #000;
+  width: 100%;
+  height: 100%;
+}
+
+.yt-video.hidden { display: none; }
+
+.chat-app {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #0f0f0f;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-app.hidden { display: none; }
+
+.chat-bar {
+  background: #171717;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.chat-title {
+  font-size: 15px;
+  color: #ececec;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chat-sub {
+  font-size: 11.5px;
+  color: #777;
+  white-space: nowrap;
+}
+
+.chat-bar select {
+  padding: 4px 8px;
+  background: #202020;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  color: #ececec;
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.chat-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.chat-row .who {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: 0 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+}
+
+.chat-row.user .who { background: #10a37f; }
+.chat-row.assistant .who { background: #7c7c7c; }
+
+.chat-row .bubble {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #ececec;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+}
+
+.chat-row.user { flex-direction: row-reverse; }
+.chat-row.user .bubble {
+  background: #1c1c1c;
+  border: 1px solid #2c2c2c;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 4px;
+  max-width: 75%;
+}
+
+.chat-row.assistant .bubble {
+  background: transparent;
+  padding-left: 0;
+}
+
+.chat-row .bubble .inner-err { color: #ff6b6b; }
+
+.chat-row .bubble.typing { color: #9a9a9a; font-style: italic; }
+
+.chat-row .bubble pre {
+  background: #161616;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.chat-row .bubble pre code { background: none; padding: 0; color: #e6e6e6; }
+
+.chat-row .bubble code {
+  background: #1d1d1d;
+  border: 1px solid #2c2c2c;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  color: #f0b37e;
+}
+
+.chat-row .bubble p { margin: 6px 0; }
+.chat-row .bubble h1, .chat-row .bubble h2, .chat-row .bubble h3,
+.chat-row .bubble h4, .chat-row .bubble h5, .chat-row .bubble h6 {
+  margin: 10px 0 6px; line-height: 1.3; color: #fff;
+}
+.chat-row .bubble h1 { font-size: 18px; }
+.chat-row .bubble h2 { font-size: 16px; }
+.chat-row .bubble h3 { font-size: 15px; }
+.chat-row .bubble blockquote {
+  border-left: 3px solid #3a3a3a;
+  padding-left: 10px;
+  color: #b8b8b8;
+  margin: 8px 0;
+}
+.chat-row .bubble ul, .chat-row .bubble ol { margin: 6px 0 6px 20px; padding: 0; }
+.chat-row .bubble li { margin: 3px 0; }
+.chat-row .bubble hr { border: none; border-top: 1px solid #2e2e2e; margin: 10px 0; }
+.chat-row .bubble a { color: #10a57a; }
+.chat-row .bubble a:hover { text-decoration: underline; }
+
+.chat-row.user .bubble a { color: #7dd3fc; }
+
+.chat-input-wrap {
+  border-top: 1px solid #2b2b2b;
+  padding: 12px 16px;
+  background: #0f0f0f;
+}
+
+.chat-input {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.chat-input textarea {
+  flex: 1;
+  resize: none;
+  background: #202020;
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  color: #ececec;
+  font-size: 14px;
+  padding: 10px 12px;
+  max-height: 160px;
+  min-height: 42px;
+  font-family: inherit;
+}
+
+.chat-input textarea:focus { outline: none; border-color: #10a37f; }
+
+.chat-keycard {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.chat-keycard.hidden { display: none; }
+
+.chat-keycard .box {
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 14px;
+  padding: 22px;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-keycard h3 { color: #ececec; font-size: 16px; margin: 0; }
+
+.chat-keycard p {
+  color: #999;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.chat-keycard input {
+  padding: 9px 12px;
+  background: #202020;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  color: #ececec;
+  font-size: 13px;
+}
+
+.chat-keycard input:focus { outline: none; border-color: #10a37f; }
+
+.chat-keycard .row { display: flex; gap: 8px; }
+
+.chat-hint {
+  font-size: 11.5px;
+  color: #666;
+  text-align: center;
+  padding: 0 10px 8px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="btn ghost" id="btn-back" disabled>&#8592;</button>
+    <button class="btn ghost" id="btn-fwd" disabled>&#8594;</button>
+    <button class="btn ghost" id="btn-reload" disabled>&#8635;</button>
+    <input type="text" id="urlbar" class="urlbar" placeholder="Enter URL" disabled>
+    <button class="btn" id="btn-go" disabled>Go</button>
+    <button class="btn ghost" id="btn-settings">Relay</button>
+  </div>
+
+  <div class="settings" id="settings" style="display:none">
+    <label for="ws-url">WS URL:</label>
+    <input type="text" id="ws-url" value="ws://localhost:8080" style="flex:1; min-width:150px; padding:6px 10px; background:#0f3460; color:#e0e0e0; border:1px solid #333; border-radius:4px;">
+    <button class="btn" id="btn-connect">Connect</button>
+    <button class="btn ghost" id="btn-disconnect" disabled>Disconnect</button>
+    <span class="status" id="ws-status">Not connected</span>
+  </div>
+
+  <div class="iframe-wrap">
+    <iframe id="frame"></iframe>
+    <div class="overlay" id="start-overlay">
+      <div style="font-size:36px; margin-bottom:8px;">&#127760;</div>
+      <div style="font-size:18px; color:#e0e0e0; margin-bottom:4px;">WS Browser</div>
+      <div style="color:#888;">Click <b>Relay</b> above to connect, or enter a URL to browse</div>
+    </div>
+    <div class="overlay hidden" id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="overlay-text">Loading...</div>
+    </div>
+    <div class="yt-player hidden" id="yt-player">
+      <div class="yt-bar">
+        <button class="btn ghost yt-back" id="yt-back">&#8592; Back</button>
+        <span class="yt-title" id="yt-title">YouTube</span>
+      </div>
+      <div class="yt-body">
+        <img class="yt-thumb" id="yt-thumb" />
+        <div class="yt-info" id="yt-info"></div>
+        <div class="yt-quality">
+          <label for="yt-quality-select">Quality:</label>
+          <select id="yt-quality-select">
+            <option value="360">360p</option>
+            <option value="480">480p</option>
+            <option value="720">720p</option>
+          </select>
+        </div>
+        <div class="yt-quality">
+          <label for="yt-sub-select">Subtitles:</label>
+          <select id="yt-sub-select"><option value="">Off</option></select>
+        </div>
+        <div class="yt-progress-wrap" id="yt-progress-wrap">
+          <div class="yt-progress-bar"><div class="yt-progress" id="yt-progress"></div></div>
+          <span class="yt-progress-text" id="yt-progress-text">0%</span>
+        </div>
+        <div class="yt-btns">
+          <button class="btn" id="yt-play">Play</button>
+          <button class="btn ghost" id="yt-cancel" style="display:none">Cancel</button>
+        </div>
+        <div class="yt-error" id="yt-error"></div>
+      </div>
+      <video class="yt-video hidden" id="yt-video" controls></video>
+    </div>
+    <div class="chat-app hidden" id="chat-app">
+      <div class="chat-bar">
+        <button class="btn ghost" id="chat-back">&#8592; Back</button>
+        <span class="chat-title">ChatGPT</span>
+        <span class="chat-sub" id="chat-sub">via API</span>
+        <select id="chat-model">
+          <option value="openai">openai (free)</option>
+          <option value="openai-large">openai-large (free)</option>
+          <option value="llama">llama (free)</option>
+          <option value="mistral">mistral (free)</option>
+        </select>
+        <button class="btn ghost" id="chat-new">New chat</button>
+        <button class="btn ghost" id="chat-keybtn">Key</button>
+      </div>
+      <div class="chat-log" id="chat-log"></div>
+      <div class="chat-input-wrap">
+        <div class="chat-input">
+          <textarea id="chat-text" rows="1" placeholder="Message ChatGPT…"></textarea>
+          <button class="btn" id="chat-send">Send</button>
+        </div>
+        <div class="chat-hint">Free chat runs through the proxy server — no API key needed. You can optionally connect your own OpenAI key via the Key button.</div>
+      </div>
+      <div class="chat-keycard hidden" id="chat-keycard">
+        <div class="box">
+          <h3>Optional: add an OpenAI key</h3>
+          <p>Chat already works for free without a key. Pasting an OpenAI key here switches the backend to your paid OpenAI account for better models.</p>
+          <input type="password" id="chat-key" placeholder="sk-... (optional)" autocomplete="off">
+          <div class="row">
+            <button class="btn" id="chat-keysave">Save key</button>
+            <button class="btn ghost" id="chat-keycancel">Use free mode</button>
+          </div>
+          <p id="chat-keyerr" style="color:#ff6b6b;display:none"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const urlbar = document.getElementById("urlbar");
+const btnGo = document.getElementById("btn-go");
+const btnBack = document.getElementById("btn-back");
+const btnFwd = document.getElementById("btn-fwd");
+const btnReload = document.getElementById("btn-reload");
+const btnSettings = document.getElementById("btn-settings");
+const settingsEl = document.getElementById("settings");
+const wsUrlInput = document.getElementById("ws-url");
+const btnConnect = document.getElementById("btn-connect");
+const btnDisconnect = document.getElementById("btn-disconnect");
+const wsStatus = document.getElementById("ws-status");
+const frame = document.getElementById("frame");
+const startOverlay = document.getElementById("start-overlay");
+const loadingOverlay = document.getElementById("loading-overlay");
+const overlayText = document.getElementById("overlay-text");
+const ytPlayer = document.getElementById("yt-player");
+const ytTitle = document.getElementById("yt-title");
+const ytThumb = document.getElementById("yt-thumb");
+const ytInfo = document.getElementById("yt-info");
+const ytProgressWrap = document.getElementById("yt-progress-wrap");
+const ytProgress = document.getElementById("yt-progress");
+const ytProgressText = document.getElementById("yt-progress-text");
+const ytPlay = document.getElementById("yt-play");
+const ytCancel = document.getElementById("yt-cancel");
+const ytError = document.getElementById("yt-error");
+const ytVideo = document.getElementById("yt-video");
+const ytQualitySelect = document.getElementById("yt-quality-select");
+const ytSubSelect = document.getElementById("yt-sub-select");
+
+const chatApp = document.getElementById("chat-app");
+const chatBack = document.getElementById("chat-back");
+const chatSub = document.getElementById("chat-sub");
+const chatModel = document.getElementById("chat-model");
+const chatNewBtn = document.getElementById("chat-new");
+const chatKeyBtn = document.getElementById("chat-keybtn");
+const chatLog = document.getElementById("chat-log");
+const chatText = document.getElementById("chat-text");
+const chatSend = document.getElementById("chat-send");
+const chatKeycard = document.getElementById("chat-keycard");
+const chatKey = document.getElementById("chat-key");
+const chatKeySave = document.getElementById("chat-keysave");
+const chatKeyCancel = document.getElementById("chat-keycancel");
+const chatKeyErr = document.getElementById("chat-keyerr");
+
+let ws = null;
+let nextId = 1;
+const pending = new Map();
+const history = [];
+let idx = -1;
+let navId = 0;
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(obj));
+    return true;
+  }
+  return false;
+}
+
+function request(obj) {
+  return new Promise(function (resolve, reject) {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    obj.id = id;
+    if (!send(obj)) {
+      pending.delete(id);
+      reject(new Error("Not connected"));
+    }
+  });
+}
+
+function showOverlay(text, show) {
+  overlayText.textContent = text;
+  loadingOverlay.classList.toggle("hidden", !show);
+  if (show) startOverlay.classList.add("hidden");
+}
+
+function hideStartOverlay() {
+  startOverlay.classList.add("hidden");
+}
+
+function setStatus(text, cls) {
+  wsStatus.textContent = text;
+  wsStatus.className = "status" + (cls ? " " + cls : "");
+}
+
+function updateButtons() {
+  btnBack.disabled = idx <= 0;
+  btnFwd.disabled = idx >= history.length - 1;
+  btnReload.disabled = !(ws && ws.readyState === WebSocket.OPEN);
+  btnGo.disabled = !(ws && ws.readyState === WebSocket.OPEN);
+  urlbar.disabled = !(ws && ws.readyState === WebSocket.OPEN);
+  btnDisconnect.disabled = !(ws && ws.readyState === WebSocket.OPEN);
+  btnConnect.disabled = ws && ws.readyState === WebSocket.OPEN;
+}
+
+function commitUrl(u) {
+  if (history[idx] === u) return;
+  history.splice(idx + 1);
+  history.push(u);
+  idx = history.length - 1;
+  updateButtons();
+}
+
+function makeBlob(mime, b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([arr], { type: mime || "application/octet-stream" }));
+}
+
+function isChatGpt(u) {
+  try {
+    var h = new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+    return h === "chatgpt.com" || h.endsWith(".chatgpt.com");
+  } catch {}
+  return false;
+}
+
+function isYoutubeWatch(u) {
+  try {
+    var p = new URL(u);
+    var h = p.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    if (h === "youtu.be" || h === "youtube.com" || h === "m.youtube.com" || h === "music.youtube.com") {
+      if (h === "youtu.be" || /^\/watch/.test(p.pathname) || /^\/shorts\//.test(p.pathname)) return true;
+    }
+  } catch {}
+  return false;
+}
+
+function isYoutubeSearch(u) {
+  try {
+    var p = new URL(u);
+    var h = p.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    if ((h === "youtube.com" || h === "m.youtube.com") && /^\/results/.test(p.pathname) && p.searchParams.has("search_query")) return true;
+  } catch {}
+  return false;
+}
+
+async function navigateTo(url, opts) {
+  opts = opts || {};
+  if (!url) return;
+
+  if (isYoutubeWatch(url) && !opts.fromHistory && !opts.skipYt) {
+    openYtPlayer(url, opts.record);
+    return;
+  }
+
+  if (isChatGpt(url)) {
+    openChatApp(url, opts.record);
+    return;
+  }
+
+  navId++;
+  const myNav = navId;
+  showOverlay(opts.fromHistory ? "Loading " + url : "Loading " + url, true);
+  urlbar.value = url;
+  try {
+    const m = await request({ type: "fetch", url: url });
+    if (myNav !== navId) return;
+    frame.srcdoc = m.html || m.b64;
+    if (m.url) urlbar.value = m.url;
+    showOverlay("", false);
+    if (opts.record) commitUrl(m.url || url);
+  } catch (err) {
+    if (myNav !== navId) return;
+    showOverlay("Error: " + err.message, true);
+  }
+}
+
+function doFetchMsg(d) {
+  request({ type: "fetch", url: d.url, method: "POST", body: d.body, contentType: d.contentType })
+    .then(function (m) {
+      frame.srcdoc = m.html;
+      if (m.url) { urlbar.value = m.url; commitUrl(m.url); }
+      showOverlay("", false);
+    })
+    .catch(function (err) {
+      showOverlay("Error: " + err.message, true);
+    });
+}
+
+let ytUrl = null;
+let ytActive = false;
+let ytChunks = [];
+let ytReceived = 0;
+let ytTotal = 0;
+let subsBlobUrl = null;
+let subtitleCues = [];
+let subtitleOverlay = null;
+
+function parseVtt(vtt) {
+  const cues = [];
+  const lines = String(vtt || "").replace(/\r\n/g, "\n").split("\n");
+  const cueRe = /^(?:(\d{2,}):)?(\d{2}):(\d{2}(?:\.\d{1,3})?)\s*-->\s*(?:(\d{2,}):)?(\d{2}):(\d{2}(?:\.\d{1,3})?)/;
+  const toSec = function (h, m, s) { return (h ? parseInt(h, 10) : 0) * 3600 + parseInt(m, 10) * 60 + parseFloat(s); };
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line || line === "WEBVTT" || /^(STYLE|REGION|NOTE|Kind|Language)\b/i.test(line)) { i++; continue; }
+    const m = line.match(cueRe);
+    if (!m) { i++; continue; }
+    const text = [];
+    i++;
+    while (i < lines.length && lines[i].trim() !== "" && !cueRe.test(lines[i].trim())) { text.push(lines[i]); i++; }
+    const clean = text.join("\n").replace(/<\/?[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ");
+    cues.push([toSec(m[1], m[2], m[3]), toSec(m[4], m[5], m[6]), clean]);
+  }
+  return cues;
+}
+
+function updateSubtitles() {
+  if (!subtitleOverlay || !subtitleCues.length) return;
+  var t = ytVideo.currentTime;
+  var text = "";
+  for (var i = 0; i < subtitleCues.length; i++) {
+    if (t >= subtitleCues[i][0] && t <= subtitleCues[i][1]) { text = subtitleCues[i][2]; break; }
+  }
+  subtitleOverlay.textContent = text;
+}
+
+function attachSubs(vtt) {
+  if (subtitleOverlay) { subtitleOverlay.remove(); subtitleOverlay = null; }
+  subtitleCues = [];
+  if (ytVideo) ytVideo.removeEventListener("timeupdate", updateSubtitles);
+  if (subsBlobUrl) { URL.revokeObjectURL(subsBlobUrl); subsBlobUrl = null; }
+  if (!vtt) return;
+  subtitleCues = parseVtt(vtt);
+  if (!subtitleCues.length) return;
+  subtitleOverlay = document.createElement("div");
+  subtitleOverlay.style.cssText = "position:absolute;bottom:48px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:#fff;padding:6px 14px;border-radius:4px;font-size:18px;line-height:1.4;white-space:pre-wrap;text-align:center;pointer-events:none;z-index:10;max-width:90%;";
+  ytPlayer.appendChild(subtitleOverlay);
+  ytVideo.addEventListener("timeupdate", updateSubtitles);
+  updateSubtitles();
+}
+
+function ytLog(msg) {
+  ytError.textContent = msg;
+  ytError.style.display = msg ? "block" : "none";
+}
+
+function openYtPlayer(url, record) {
+  if (record) commitUrl(url);
+  urlbar.value = url;
+  if (ytVideo.src) URL.revokeObjectURL(ytVideo.src);
+  ytVideo.src = "";
+  ytVideo.classList.add("hidden");
+  ytActive = false;
+  ytChunks = [];
+  ytReceived = 0;
+  ytTotal = 0;
+  ytLog("");
+  ytProgressWrap.classList.remove("show");
+  ytProgress.style.width = "0%";
+  ytProgressText.textContent = "0%";
+  ytThumb.style.display = "block";
+  ytPlay.style.display = "";
+  ytCancel.style.display = "none";
+
+  showOverlay("Getting video info...", true);
+  ytTitle.textContent = "YouTube";
+  ytInfo.textContent = "";
+
+  request({ type: "yt", url: url })
+    .then(function (m) {
+      showOverlay("", false);
+      hideStartOverlay();
+      ytPlayer.classList.remove("hidden");
+      ytUrl = m.url || url;
+      ytTitle.textContent = m.title;
+      ytInfo.textContent = m.author + " \u00b7 " + fmtDuration(m.duration);
+      ytSubSelect.length = 1;
+      if (m.subs && m.subs.length) {
+        for (var i = 0; i < m.subs.length; i++) {
+          var o = document.createElement("option");
+          o.value = m.subs[i].code;
+          o.dataset.lang = m.subs[i].base || m.subs[i].code;
+          o.textContent = m.subs[i].label || m.subs[i].base || m.subs[i].code;
+          ytSubSelect.appendChild(o);
+        }
+        for (var j = 0; j < ytSubSelect.options.length; j++) {
+          if (ytSubSelect.options[j].dataset.lang === "en") { ytSubSelect.value = ytSubSelect.options[j].value; break; }
+        }
+      }
+      attachSubs("");
+      if (m.thumb) {
+        request({ type: "resource", url: m.thumb })
+          .then(function (r) {
+            if (r.b64 !== undefined) ytThumb.src = makeBlob(r.mime, r.b64);
+          })
+          .catch(function () {});
+      }
+    })
+    .catch(function (err) {
+      showOverlay("", false);
+      ytPlayer.classList.remove("hidden");
+      ytLog(String(err.message || err));
+    });
+}
+
+function fmtDuration(s) {
+  s = Number(s) || 0;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h) return h + ":" + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+  return m + ":" + String(sec).padStart(2, "0");
+}
+
+function startYtDownload() {
+  if (!ytUrl || ytActive) return;
+  ytActive = true;
+  ytChunks = [];
+  ytReceived = 0;
+  ytTotal = 0;
+  ytLog("");
+  ytPlay.style.display = "none";
+  ytCancel.style.display = "";
+  ytProgressWrap.classList.add("show");
+  ytProgress.style.width = "0%";
+  ytProgressText.textContent = "Preparing (video+audio merge may take a bit)...";
+
+  send({ type: "ytdownload", url: ytUrl, height: Number(ytQualitySelect.value) || 360, sub: ytSubSelect.value });
+}
+
+function cancelYtDownload() {
+  ytActive = false;
+  ytPlay.style.display = "";
+  ytCancel.style.display = "none";
+  ytProgressWrap.classList.remove("show");
+  ytLog("Cancelled");
+}
+
+function handleYtEvent(m) {
+  if (!ytActive) return;
+  if (m.type === "ytstart") {
+    ytChunks = [];
+    ytReceived = 0;
+    ytTotal = 0;
+    ytProgressText.textContent = "Preparing...";
+  } else if (m.type === "ytready") {
+    ytTotal = m.size || 0;
+    if (!ytTotal) ytTotal = 1;
+    ytProgress.style.width = "0%";
+    ytProgressText.textContent = "0%";
+  } else if (m.type === "ytchunk") {
+    const bin = atob(m.b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    ytChunks.push(arr);
+    ytReceived += arr.length;
+    const pct = Math.min(100, Math.round((ytReceived / ytTotal) * 100));
+    ytProgress.style.width = pct + "%";
+    ytProgressText.textContent = pct + "%  (" + (ytReceived / 1048576).toFixed(1) + " MB)";
+  } else if (m.type === "ytdone") {
+    const total = ytChunks.reduce((s, a) => s + a.length, 0);
+    const whole = new Uint8Array(total);
+    let off = 0;
+    for (let i = 0; i < ytChunks.length; i++) {
+      whole.set(ytChunks[i], off);
+      off += ytChunks[i].length;
+    }
+    ytChunks = [];
+    const blob = new Blob([whole], { type: "video/mp4" });
+    const url = URL.createObjectURL(blob);
+    ytVideo.classList.remove("hidden");
+    ytVideo.src = url;
+    ytVideo.onloadedmetadata = null;
+    ytThumb.style.display = "none";
+    ytProgressWrap.classList.remove("show");
+    ytCancel.style.display = "none";
+    ytActive = false;
+    ytVideo.play();
+  } else if (m.type === "ytsub") {
+    attachSubs(m.vtt || "");
+  } else if (m.type === "error") {
+    ytActive = false;
+    ytPlay.style.display = "";
+    ytCancel.style.display = "none";
+    ytProgressWrap.classList.remove("show");
+    ytLog(m.message);
+  }
+}
+
+let chatMsgs = [];
+let chatThinking = false;
+
+function chatEscape(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function mdInline(raw) {
+  var s = String(raw)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  s = s.replace(/`([^`]+)`/g, function (m, c) { return "<code>" + c + "</code>"; });
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (m, t, u) {
+    var url = u.replace(/&amp;/g, "&");
+    if (!/^(https?:|mailto:|\/)/i.test(url)) return m;
+    return '<a href="' + url.replace(/"/g, "%22") + '" target="_blank" rel="noreferrer">' + t + "</a>";
+  });
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, function (m, p, a) { return p + "<em>" + a + "</em>"; });
+  return s;
+}
+
+function mdRender(src) {
+  var lines = String(src || "").replace(/\r\n?/g, "\n").split("\n");
+  var out = [];
+  var i = 0;
+  var isFence = function (l) { return /^\s*(```|~~~)\s*([\w+-]*)\s*$/.exec(l); };
+  while (i < lines.length) {
+    var fm = isFence(lines[i]);
+    if (fm) {
+      var fence = fm[1];
+      var lang = fm[2];
+      var buf = [];
+      i++;
+      while (i < lines.length && !isFence(lines[i])) {
+        buf.push(chatEscape(lines[i]));
+        i++;
+      }
+      i++;
+      out.push("<pre" + (lang ? ' data-lang="' + chatEscape(lang) + '"' : "") + "><code>" + buf.join("\n") + "</code></pre>");
+      continue;
+    }
+    var line = lines[i];
+    var hr = /^(\s*[-*_]\s*){3,}$/.exec(line);
+    if (hr) { out.push("<hr>"); i++; continue; }
+    var hm = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (hm) {
+      var lvl = hm[1].length;
+      out.push("<h" + lvl + ">" + mdInline(hm[2]) + "</h" + lvl + ">");
+      i++;
+      continue;
+    }
+    if (/^>\s?/.test(line)) {
+      var bq = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) {
+        bq.push(mdInline(lines[i].replace(/^>\s?/, "")));
+        i++;
+      }
+      out.push("<blockquote>" + bq.join(" ") + "</blockquote>");
+      continue;
+    }
+    var om = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    var um = /^\s*[-+*]\s+(.*)$/.exec(line);
+    if (om || um) {
+      var ordered = !!om;
+      var re = om ? /^\s*\d+[.)]\s+(.*)$/ : /^\s*[-+*]\s+(.*)$/;
+      var items = [];
+      while (i < lines.length) {
+        if (lines[i].trim() === "") {
+          if (i + 1 < lines.length && re.exec(lines[i + 1])) { i++; continue; }
+          break;
+        }
+        var it = re.exec(lines[i]);
+        if (!it) break;
+        items.push("<li>" + mdInline(it[1]) + "</li>");
+        i++;
+      }
+      out.push((ordered ? "<ol>" : "<ul>") + items.join("") + (ordered ? "</ol>" : "</ul>"));
+      continue;
+    }
+    if (line.trim() === "") { i++; continue; }
+    var para = [];
+    while (i < lines.length && lines[i].trim() !== "" && !isFence(lines[i]) && !/^\s{0,3}(#{1,6}\s|[-+*_]\s|\d+[.)]\s|>|(\s*[-*_]\s*){3,})/.test(lines[i])) {
+      para.push(mdInline(lines[i]));
+      i++;
+    }
+    out.push("<p>" + para.join(" ") + "</p>");
+  }
+  return out.join("\n");
+}
+
+function chatAdd(role, text, cls) {
+  var row = document.createElement("div");
+  row.className = "chat-row " + role;
+  var who = document.createElement("div");
+  who.className = "who";
+  who.textContent = role === "user" ? "You" : "AI";
+  var bubble = document.createElement("div");
+  bubble.className = "bubble" + (cls ? " " + cls : "");
+  bubble.textContent = text;
+  row.appendChild(who);
+  row.appendChild(bubble);
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return bubble;
+}
+
+function openChatApp(url, record) {
+  if (record) commitUrl(url);
+  urlbar.value = url;
+  hideStartOverlay();
+  chatApp.classList.remove("hidden");
+  startOverlay.classList.add("hidden");
+  checkChatKey();
+  chatText.focus();
+}
+
+function closeChatApp() {
+  chatApp.classList.add("hidden");
+  chatKeycard.classList.add("hidden");
+  navigateTo("https://duckduckgo.com", { record: true });
+}
+
+function checkChatKey() {
+  request({ type: "chatkey", get: true })
+    .then(function (m) {
+      chatSub.textContent = m.keySet ? "via OpenAI key" : "free - no key";
+    })
+    .catch(function () {
+      chatSub.textContent = "free - no key";
+    });
+}
+
+function saveChatKey() {
+  var k = chatKey.value.trim();
+  if (!k) return;
+  chatKeyErr.style.display = "none";
+  request({ type: "chatkey", key: k })
+    .then(function () {
+      chatSub.textContent = "via OpenAI key";
+      chatKeycard.classList.add("hidden");
+      chatKey.value = "";
+      chatText.focus();
+    })
+    .catch(function (err) {
+      chatKeyErr.textContent = String(err.message || err);
+      chatKeyErr.style.display = "block";
+    });
+}
+
+function sendChat() {
+  if (chatThinking) return;
+  var text = chatText.value.replace(/\s+$/, "");
+  if (!text) return;
+  chatText.value = "";
+  chatText.style.height = "";
+  chatAdd("user", text);
+  chatLog.lastChild.lastElementChild.innerHTML = mdRender(text);
+  chatMsgs.push({ role: "user", content: text });
+  chatThinking = true;
+  var typing = chatAdd("assistant", "Thinking…", "typing");
+  chatSend.disabled = true;
+  var msgs = [{ role: "system", content: "You are a helpful assistant." }].concat(chatMsgs);
+  request({ type: "chat", messages: msgs, model: chatModel.value, maxTokens: 4096 })
+    .then(function (m) {
+      chatThinking = false;
+      chatSend.disabled = false;
+      typing.className = "bubble";
+      typing.innerHTML = mdRender(m.text || "");
+      chatMsgs.push({ role: "assistant", content: m.text || "" });
+    })
+    .catch(function (err) {
+      chatThinking = false;
+      chatSend.disabled = false;
+      typing.className = "bubble";
+      typing.innerHTML = '<span class="inner-err">' + chatEscape(String(err.message || err)).replace(/\n/g, "<br>") + "</span>";
+    });
+}
+
+function newChat() {
+  chatMsgs = [];
+  chatLog.innerHTML = "";
+}
+
+function closeYtPlayer() {
+  ytPlayer.classList.add("hidden");
+  if (ytVideo.src) URL.revokeObjectURL(ytVideo.src);
+  ytVideo.src = "";
+  ytVideo.classList.add("hidden");
+  ytActive = false;
+  ytChunks = [];
+  attachSubs("");
+  ytThumb.style.display = "block";
+  ytPlay.style.display = "";
+  ytCancel.style.display = "none";
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || typeof d !== "object") return;
+
+  if (d.cmd === "navigate") {
+    navigateTo(d.url, { record: true });
+  } else if (d.cmd === "fetch") {
+    doFetchMsg(d);
+  } else if (d.cmd === "title") {
+    if (d.title) document.title = d.title + " - WS Browser";
+  } else if (d.cmd === "resource") {
+    request({ type: "resource", url: d.url })
+      .then(function (m) {
+        if (m.b64 !== undefined) {
+          e.source.postMessage(
+            { cmd: "resolved", id: d.id, ok: true, url: m.url, blobUrl: makeBlob(m.mime, m.b64) },
+            "*"
+          );
+        } else {
+          e.source.postMessage({ cmd: "resolved", id: d.id, ok: false, url: m.url }, "*");
+        }
+      })
+      .catch(function () {
+        e.source.postMessage({ cmd: "resolved", id: d.id, ok: false, url: null }, "*");
+      });
+  }
+});
+
+function connectWs() {
+  const url = wsUrlInput.value.trim();
+  if (!url) return;
+  setStatus("Connecting...");
+  btnConnect.disabled = true;
+  try {
+    ws = new WebSocket(url);
+  } catch (err) {
+    setStatus("Bad URL: " + err.message, "error");
+    updateButtons();
+    return;
+  }
+  ws.onopen = function () {
+    setStatus("Connected", "online");
+    updateButtons();
+    navigateTo("https://duckduckgo.com", { record: true });
+  };
+  ws.onmessage = function (event) {
+    let m;
+    try { m = JSON.parse(event.data); } catch { return; }
+    if (m.id && pending.has(m.id)) {
+      const p = pending.get(m.id);
+      pending.delete(m.id);
+      if (m.type === "error") p.reject(new Error(m.message));
+      else p.resolve(m);
+      return;
+    }
+    if (m.type === "ytstart" || m.type === "ytready" || m.type === "ytchunk" || m.type === "ytdone" || m.type === "ytsub" || (m.type === "error" && ytActive)) {
+      handleYtEvent(m);
+    }
+  };
+  ws.onclose = function () {
+    frame.srcdoc = "";
+    setStatus("Disconnected", "error");
+    updateButtons();
+  };
+  ws.onerror = function () {
+    setStatus("Connection failed", "error");
+  };
+}
+
+function disconnectWs() {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+}
+
+btnConnect.addEventListener("click", connectWs);
+btnDisconnect.addEventListener("click", disconnectWs);
+btnSettings.addEventListener("click", function () {
+  settingsEl.style.display = settingsEl.style.display === "none" ? "flex" : "none";
+});
+btnGo.addEventListener("click", function () {
+  let u = urlbar.value.trim();
+  if (!u) return;
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(u)) u = "https://" + u;
+  navigateTo(u, { record: true });
+});
+urlbar.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") btnGo.click();
+});
+btnReload.addEventListener("click", function () {
+  if (history[idx]) navigateTo(history[idx], {});
+});
+btnBack.addEventListener("click", function () {
+  if (idx > 0) {
+    idx--;
+    updateButtons();
+    navigateTo(history[idx], { fromHistory: true });
+  }
+});
+btnFwd.addEventListener("click", function () {
+  if (idx < history.length - 1) {
+    idx++;
+    updateButtons();
+    navigateTo(history[idx], { fromHistory: true });
+  }
+});
+
+ytPlay.addEventListener("click", startYtDownload);
+ytCancel.addEventListener("click", cancelYtDownload);
+document.getElementById("yt-back").addEventListener("click", closeYtPlayer);
+
+chatSend.addEventListener("click", sendChat);
+chatBack.addEventListener("click", closeChatApp);
+chatNewBtn.addEventListener("click", newChat);
+chatKeyBtn.addEventListener("click", function () {
+  chatKeycard.classList.toggle("hidden");
+});
+chatKeySave.addEventListener("click", saveChatKey);
+chatKeyCancel.addEventListener("click", function () {
+  chatKeycard.classList.add("hidden");
+});
+chatKey.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") saveChatKey();
+});
+chatText.addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+chatText.addEventListener("input", function () {
+  chatText.style.height = "auto";
+  chatText.style.height = Math.min(chatText.scrollHeight, 160) + "px";
+});
+
+updateButtons();
+setStatus("Not connected");
+</script>
+</body>
+</html>

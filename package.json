@@ -1,0 +1,14 @@
+{
+  "name": "ws-proxy-browser",
+  "version": "1.0.0",
+  "description": "WebSocket proxy that fetches web pages on behalf of a browser client",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
+    "ws": "^8.18.0",
+    "youtubei.js": "^18.0.0"
+  }
+}
