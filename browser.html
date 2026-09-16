@@ -540,7 +540,7 @@ iframe {
 
   <div class="settings" id="settings" style="display:none">
     <label for="ws-url">WS URL:</label>
-    <input type="text" id="ws-url" value="ws://localhost:8080" style="flex:1; min-width:150px; padding:6px 10px; background:#0f3460; color:#e0e0e0; border:1px solid #333; border-radius:4px;">
+    <input type="text" id="ws-url" value="https://f054-216-98-88-34.ngrok-free.app" style="flex:1; min-width:150px; padding:6px 10px; background:#0f3460; color:#e0e0e0; border:1px solid #333; border-radius:4px;">
     <button class="btn" id="btn-connect">Connect</button>
     <button class="btn ghost" id="btn-disconnect" disabled>Disconnect</button>
     <span class="status" id="ws-status">Not connected</span>
@@ -1239,7 +1239,7 @@ window.addEventListener("message", function (e) {
 });
 
 function connectWs() {
-  const url = wsUrlInput.value.trim();
+  const url = wsUrlInput.value.trim().replace(/^https:/, "wss:").replace(/^http:/, "ws:");
   if (!url) return;
   setStatus("Connecting...");
   btnConnect.disabled = true;
@@ -1348,6 +1348,7 @@ chatText.addEventListener("input", function () {
 
 updateButtons();
 setStatus("Not connected");
+connectWs();
 </script>
 </body>
 </html>
