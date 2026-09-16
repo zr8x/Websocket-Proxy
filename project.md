@@ -78,6 +78,15 @@ nohup node server.js >/tmp/opencode/wsproxy.log 2>&1 &   # port 8080 (PORT env o
 - Validate `server.js`: `node --check server.js`.
 
 ## Action log
+<details><summary>2026-09-16 — Launcher update check</summary>
+
+**What:** `browser.html` now checks for a newer `launcher.html` on GitHub.
+- Added `#btn-update` (toolbar, hidden) - shown when the copy running differs from `https://raw.githubusercontent.com/zr8x/Websocket-Proxy/refs/heads/main/launcher.html`.
+- When launched from the launcher (data-URL tab), `location.href` is decoded and hash-compared against the browser HTML embedded in the remote launcher (`data:text/html;base64,…` in the `<a href>`); on the file-open fallback it remembers the last-seen remote hash in `localStorage` (`wsbrowser_launcher_source`).
+- Clicking the button downloads the current remote `launcher.html` as a file. `checkUpdates()` runs at startup via plain `fetch` (independent of the WS proxy). Skip/never shows if fetch fails.
+- Verified with a Node harness: local-vs-remote extraction works; hashes differ → update flagged. Client JS passes `node --check`.
+</details>
+
 <details><summary>2026-09-16 — YouTube subtitles/CC</summary>
 
 **What:** Added subtitle/CC support end-to-end.
