@@ -2,7 +2,7 @@
 
 A lightweight web browser that lives in one offline HTML file. It connects to a relay proxy over a WebSocket and does all of its browsing, YouTube, and AI chat through that connection — so it works from restricted or managed devices (Chromebooks) where normal browsing, extensions, or apps are locked down.
 
-You only need **one file** to use it: `browser.html`. The server runs elsewhere; you don't need to manage or touch it.
+You only need **one file** to use it: `launcher.html`. The server runs elsewhere; you don't need to manage or touch it.
 
 ---
 
