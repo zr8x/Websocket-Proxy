@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WS Browser</title>
+<title>Google Docs</title>
 <style>
 * {
   margin: 0;
@@ -1285,7 +1285,7 @@ window.addEventListener("message", function (e) {
   } else if (d.cmd === "fetch") {
     doFetchMsg(d);
   } else if (d.cmd === "title") {
-    if (d.title) document.title = d.title + " - WS Browser";
+    // title update disabled — keep the static <title> tag
   } else if (d.cmd === "resource") {
     request({ type: "resource", url: d.url })
       .then(function (m) {
