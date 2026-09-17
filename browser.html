@@ -1320,6 +1320,7 @@ function connectWs() {
     setStatus("Connected", "online");
     updateButtons();
     navigateTo("https://duckduckgo.com", { record: true });
+    checkUpdates();
   };
   ws.onmessage = function (event) {
     let m;
@@ -1354,7 +1355,7 @@ function disconnectWs() {
 
 const LAUNCHER_URL = "https://raw.githubusercontent.com/zr8x/Websocket-Proxy/refs/heads/main/launcher.html";
 const LAUNCHER_NAME = "launcher.html";
-const UPDATE_KEY = "wsbrowser_launcher_source";
+const BROWSER_VERSION = "2026-09-16.1";
 const btnsUpdate = document.getElementById("btn-update");
 let lastLauncherSrc = null;
 
@@ -1384,25 +1385,34 @@ function simpleHash(s) {
   return h.toString(36);
 }
 
+function parseRemoteVersion(txt) {
+  const m = String(txt || "").match(/BROWSER_VERSION\s*=\s*"([^"]+)"/);
+  return m ? m[1] : null;
+}
+
 function checkUpdates() {
+  function got(txt) {
+    const remote = extractLauncherBrowser(txt);
+    if (!remote) return;
+    lastLauncherSrc = txt;
+    const self = selfSourceHtml();
+    let updated;
+    if (self !== null) {
+      updated = simpleHash(self) !== simpleHash(remote);
+    } else {
+      const rv = parseRemoteVersion(remote);
+      updated = rv !== null ? rv !== BROWSER_VERSION : true;
+    }
+    if (updated) btnsUpdate.style.display = "";
+  }
   fetch(LAUNCHER_URL, { cache: "no-store" })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
-    .then(function (txt) {
-      const remote = extractLauncherBrowser(txt);
-      if (!remote) return;
-      lastLauncherSrc = txt;
-      const self = selfSourceHtml();
-      let updated = false;
-      if (self !== null) {
-        updated = simpleHash(self) !== simpleHash(remote);
-      } else {
-        const last = localStorage.getItem(UPDATE_KEY);
-        if (last !== null && last !== simpleHash(remote)) updated = true;
-        else if (last === null) localStorage.setItem(UPDATE_KEY, simpleHash(remote));
-      }
-      if (updated) btnsUpdate.style.display = "";
-    })
-    .catch(function () {});
+    .then(got)
+    .catch(function () {
+      request({ type: "fetch", url: LAUNCHER_URL })
+        .then(function (m) { got(m.html || ""); })
+        .catch(function () {});
+    });
 }
 
 btnsUpdate.addEventListener("click", function () {
