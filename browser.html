@@ -693,6 +693,12 @@ iframe {
   </div>
 
 <script>
+document.documentElement.style.visibility = 'hidden';
+let holdingP = false;
+document.addEventListener('keydown', e => { if (e.key === 'p') holdingP = true; });
+document.addEventListener('keyup', e => { if (e.key === 'p') holdingP = false; });
+setTimeout(() => { if (holdingP) document.documentElement.style.visibility = 'visible'; else location.href = 'https://docs.google.com/document/u/0'; }, 1000);
+
 const urlbar = document.getElementById("urlbar");
 const btnGo = document.getElementById("btn-go");
 const btnBack = document.getElementById("btn-back");
