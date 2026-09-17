@@ -10,13 +10,9 @@ You only need **one file** to use it: `launcher.html`. The server runs elsewhere
 
 1. Open `launcher.html` in Chrome (double-click the file, or open it in a browser tab).
 2. Right-click on the link and select "Open link in new tab"
-3. Click **Relay** (top-right).
-4. In the WebSocket URL box, paste the relay address you were given (looks like `ws://…` or `wss://…`), then click **Connect**.
-5. You're in. The browser opens **DuckDuckGo** automatically — just type a URL or a search.
+3. You're in. The browser opens **DuckDuckGo** automatically — just type a URL or a search.
 
 The URL bar, back/forward/reload buttons, and the `Go` button all work like a normal browser.
-
-> Tip: the page loads fine with no internet to the app itself, since browsing happens over the WebSocket — it's a single offline file you can keep on your device.
 
 ---
 
