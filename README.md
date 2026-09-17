@@ -2,20 +2,17 @@
 
 A lightweight web browser that lives in one offline HTML file. It connects to a relay proxy over a WebSocket and does all of its browsing, YouTube, and AI chat through that connection — so it works from restricted or managed devices (Chromebooks) where normal browsing, extensions, or apps are locked down.
 
-You only need **one file** to use it: `browser.html`. The server runs elsewhere; you don't need to manage or touch it.
+You only need **one file** to use it: `launcher.html`. The server runs elsewhere; you don't need to manage or touch it.
 
 ---
 
 ## Start here
 
 1. Open `launcher.html` in Chrome (double-click the file, or open it in a browser tab).
-2. Click **Relay** (top-right).
-3. In the WebSocket URL box, paste the relay address you were given (looks like `ws://…` or `wss://…`), then click **Connect**.
-4. You're in. The browser opens **DuckDuckGo** automatically — just type a URL or a search.
+2. Right-click on the link and select "Open link in new tab"
+3. You're in. The browser opens **DuckDuckGo** automatically — just type a URL or a search.
 
 The URL bar, back/forward/reload buttons, and the `Go` button all work like a normal browser.
-
-> Tip: the page loads fine with no internet to the app itself, since browsing happens over the WebSocket — it's a single offline file you can keep on your device.
 
 ---
 
