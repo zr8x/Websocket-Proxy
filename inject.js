@@ -144,6 +144,22 @@
   );
 
   document.addEventListener(
+    "keydown",
+    function (e) {
+      if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing || e.keyCode === 229) return;
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var f = t.closest("form[action^='" + PROXY + "']");
+      if (!f) return;
+      if (f.getAttribute("role") !== "search" && f.id !== "searchbox_homepage") return;
+      e.preventDefault();
+      if (f.requestSubmit) f.requestSubmit();
+      else f.submit();
+    },
+    true
+  );
+
+  document.addEventListener(
     "submit",
     function (e) {
       var f = e.target;

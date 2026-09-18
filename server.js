@@ -23,7 +23,12 @@ const HAS_CURL_CFFI = (() => {
 
 const YT_CACHE = fs.mkdtempSync(path.join(os.tmpdir(), "wspxy-yt-"));
 
-const PORT = Number(process.env.PORT) || 8080;
+let DEFAULT_PORT = 8080;
+try {
+  const branch = require("child_process").execSync("git rev-parse --abbrev-ref HEAD", { cwd: __dirname, timeout: 3000 }).toString().trim();
+  if (branch === "dev") DEFAULT_PORT = 8081;
+} catch {}
+const PORT = Number(process.env.PORT) || DEFAULT_PORT;
 const PROXY = "proxy://";
 
 const USER_AGENT =
@@ -105,6 +110,49 @@ function stripBaseAndCsp(html) {
   return out;
 }
 
+function stripJs(html) {
+  let out = html;
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  out = out.replace(/<script\b[^>]*\/?>/gi, "");
+  out = out.replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  out = out.replace(/javascript\s*:/gi, "void:");
+  return out;
+}
+
+function unwrapDdgRedirects(html) {
+  const re = /\bhref\s*=\s*("([^"]*)"|'([^']*)')/gi;
+  return html.replace(re, (m, full, d1, d2) => {
+    const raw = (d1 !== undefined ? d1 : d2).replace(/&amp;/g, "&").trim();
+    if (raw.indexOf("uddg=") === -1 || raw.indexOf("/l/?") === -1) return m;
+    let u;
+    try { u = new URL(raw, "https://duckduckgo.com/"); } catch { return m; }
+    if (u.hostname.replace(/^www\./i, "") !== "duckduckgo.com") return m;
+    if (!/^\/l\/?$/.test(u.pathname)) return m;
+    const real = u.searchParams.get("uddg");
+    if (!/^https?:/i.test(real || "")) return m;
+    const q = d1 !== undefined ? '"' : "'";
+    return "href=" + q + real.replace(/"/g, "%22") + q;
+  });
+}
+
+function unhideAppShell(html) {
+  // Next.js/React render <div id="__next"><div style="visibility:hidden;…">…</div></div>
+  // and flip it visible on JS hydration. With scripts stripped, the wrapper never un-hides
+  // → whole page stays blank. Make it visible up-front instead.
+  let out = html.replace(
+    /<div\b([^>]*?)\bid=["'](__next|root|app)["']([^>]*?)>\s*<div\b([^>]*?)\bstyle=(["'])([^"']*?)\5([^>]*?)>/gi,
+    (m, pre, id, post, innerPre, q, style, innerPost) => {
+      if (!/\bvisibility\s*:\s*hidden\b/i.test(style)) return m;
+      return "<div" + pre + ' id="' + id + '"' + post + "><div" + innerPre + " style=" + q + style.replace(/\bvisibility\s*:\s*hidden\b/gi, "visibility:visible") + q + innerPost + ">";
+    }
+  );
+  out = out.replace(/<(html|body)\b([^>]*?)\bstyle=(["'])([^"']*?)\3([^>]*?)>/gi, (m, tag, pre, q, style, rest) => {
+    if (!/\bvisibility\s*:\s*hidden\b/i.test(style)) return m;
+    return "<" + tag + pre + " style=" + q + style.replace(/\bvisibility\s*:\s*hidden\b/gi, "visibility:visible") + q + rest + ">";
+  });
+  return out;
+}
+
 function extractTitle(html) {
   const m = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
   return m ? m[1].trim() : "";
@@ -113,8 +161,10 @@ function extractTitle(html) {
 function rewriteHtml(html, base) {
   let out = html;
   out = stripBaseAndCsp(out);
+  out = stripJs(out);
   out = rewriteAttrs(out, base);
   out = rewriteSrcset(out, base);
+  out = unhideAppShell(out);
   const script = "\n<script>\n" + INJECT + "\n</script>\n";
   if (/<\/body>/i.test(out)) {
     out = out.replace(/<\/body>/i, script + "</body>");
@@ -389,7 +439,8 @@ async function handleDdgPage(ws, msg, url) {
       const body = r.body.toString("utf8");
       const gated = r.status !== 200 || /(challenge-form|anomaly\.js|information_protection|unusual activity)/i.test(body);
       if (!gated) {
-        const { html, title } = rewriteHtml(body, "https://html.duckduckgo.com/");
+        const unwrapped = unwrapDdgRedirects(body);
+        const { html, title } = rewriteHtml(unwrapped, "https://html.duckduckgo.com/");
         ws.send(JSON.stringify({ type: "page", id: msg.id, url, title, html }));
         return true;
       }

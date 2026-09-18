@@ -20,11 +20,11 @@ A WebSocket-based proxy browser pair that lets a restricted Chromebook (enterpri
 ## Startup / ops
 ```bash
 cd ~/Documents/chromeTest/wsproxy
-nohup node server.js >/tmp/opencode/wsproxy.log 2>&1 &   # port 8080 (PORT env overrides)
+nohup node server.js >/tmp/opencode/wsproxy.log 2>&1 &   # port 8081 (PORT env overrides)
 ```
 - Server reads `inject.js` once at startup — **must restart** after editing `inject.js`.
-- Port 8080 is shared with the older `relay/` project — kill the other listener before starting (use `ss -tlnp | grep 8080`).
-- To reach from the Chromebook over the internet, expose with an **HTTP** ngrok tunnel (`ngrok http 8080`), client WS URL = `wss://<name>.ngrok-free.app`. Old SSH TCP tunnel (`ngrok tcp 127.0.0.1:22`) is unrelated to this project.
+- Ports: dev branch now defaults to **8081** (the `relay/` project still uses 8080 — no more conflicts).
+- To reach from the Chromebook over the internet, expose with an **HTTP** ngrok tunnel (`ngrok http 8081`), client WS URL = `wss://<name>.ngrok-free.app`. Old SSH TCP tunnel (`ngrok tcp 127.0.0.1:22`) is unrelated to this project.
 
 ## Key files
 - `server.js` — everything server-side.
@@ -69,15 +69,53 @@ nohup node server.js >/tmp/opencode/wsproxy.log 2>&1 &   # port 8080 (PORT env o
 - Search result quality can be wrong when Bing is the fallback; DDG-html is the good-but-flaky source. If a user reports junk results, it's the Bing fallback — re-verify DDG-html availability.
 - YouTube: no login/age-restricted videos, quality capped at 720p.
 - OpenAI key is in-memory only — no persistence. Consider env var `OPENAI_API_KEY` for a persistent key.
-- Port 8080 conflicts with the `relay/` project listener.
+- Port 8081 (dev branch default); the `relay/` project owns 8080.
 
 ## Testing recipes
-- `ss -tlnp | grep 8080` — confirm server up; kill stale PID if `EADDRINUSE`.
-- Server-side e2e: open a `ws://localhost:8080` WS from a small Node script using `require('ws')` from `wsproxy/node_modules`, send `{type:'fetch',id:1,url:'https://duckduckgo.com/?q=...'}`, inspect `page.html`.
+- `ss -tlnp | grep 8081` — confirm server up; kill stale PID if `EADDRINUSE`.
+- Server-side e2e: open a `ws://localhost:8081` WS from a small Node script using `require('ws')` from `wsproxy/node_modules`, send `{type:'fetch',id:1,url:'https://duckduckgo.com/?q=...'}`, inspect `page.html`.
 - Validate client JS: extract the `<script>` block and `node --check` it.
 - Validate `server.js`: `node --check server.js`.
 
 ## Action log
+<details><summary>2026-09-18 — Fix: Next.js/React "app shell" pages render blank</summary>
+
+**User report:** `https://www.geeksforgeeks.org/git/how-to-merge-a-git-branch-into-master/` came up as a blank white page.
+
+**Root cause:** GFG is a Next.js app. The SSR HTML opens with `<body><div id="__next"><div style="visibility:hidden;background-color:#fff;min-height:100vh">…` — the whole app is rendered inside that wrapper, which Next unmakes *visible* only during JS hydration. `stripJs()` strips every `<script>`, so hydration never runs and the wrapper stays `visibility:hidden` → the entire page is invisible. (Neither a parse failure nor a resource-load issue: server delivered 152 KB of good HTML; the `node --check`-able client was fine.)
+
+**Fix (`server.js`):** added `unhideAppShell(html)`, wired into `rewriteHtml()` after `rewriteSrcset`. Inline `visibility:hidden` on the first child `<div>` of `id="__next"`/`id="root"`/`id="app"` (and on `<html>`/`<body>` inline styles) gets rewritten to `visibility:visible`. Intentionally-hidden secondary elements (e.g. GFG's `#whats-new-section` aside) are left alone — only the app-shell wrapper is un-hidden.
+
+**Verified e2e over WS:** proxied GFG page now carries `style="visibility:visible;background-color:#ffffff;min-height:100vh"` on the `__next` wrapper; only 1 `visibility:hidden` remains (the JS-driven aside). Other sites with this pattern (React/Next pre-hydration hidden shells) are covered the same way. Restart required (server embeds nothing at start besides inject.js, but the code changed so it was restarted).
+</details>
+
+<details><summary>2026-09-18 — Fix: Enter-to-search not working on DDG homepage</summary>
+
+**What:** user reported Enter did nothing in the homepage search box.
+- **Root cause:** not a code bug — the running `server.js` (PID started 2026-09-17 10:32) had loaded `inject.js` BEFORE the 09-17 Enter-to-search keydown handler was added (inject.js mtime 11:08). Server embeds inject.js once at startup, so the homepage was served without the `keydown` handler → Enter inserted a newline in the textarea and nothing searched.
+- **Fix:** restarted `server.js` (now PID 99573) to pick up the on-disk `inject.js`.
+- **Verified e2e over WS:** proxied homepage now contains the `keydown`/`requestSubmit` handler, form stays `<form id="searchbox_homepage" role="search" action="proxy://https://duckduckgo.com/">`, and following a search navigation (`https://duckduckgo.com/?q=test`) returns a results page with 10 `result__a` links.
+- **Reminder (already in Startup/ops):** after editing `inject.js` the server MUST be restarted; this was the second time a stale inject.js bite was hit, so double-check mtimes (`stat` vs `ps -o lstart=`).
+</details>
+
+<details><summary>2026-09-17 — Dev branch: new port + JS-stripping proxy</summary>
+
+**What:** dev branch work.
+- Default proxy port changed **8080 → 8081** (`server.js`), so it no longer conflicts with the `relay/` project's listener.
+- Added `stripJs()` to `server.js`: removes `<script>` tags, inline `on*` event handlers, and neutralizes `javascript:` URIs. Wired into `rewriteHtml()` so every proxied page is cleaned down to HTML+CSS before being sent to the client (inject.js is appended after cleaning, so link/form interception still works).
+- Images continue to flow through the proxy: server rewrites `src`/`data-src` → `proxy://`, and `inject.js` resolves each via WS resource requests into blob URLs.
+- `node --check` passes on server + client JS.
+</details>
+
+<details><summary>2026-09-17 — DDG redirect unwrap + Enter-to-search</summary>
+
+**What:** two DDG usability fixes.
+- **Redirect links:** DDG html-search results use `//duckduckgo.com/l/?uddg=<real-url>&rut=…` redirect links that need JS to bounce (JS is stripped by the proxy, so clicking them landed on a dead interstitial). Added `unwrapDdgRedirects()` in `server.js` (runs in `handleDdgPage` before `rewriteHtml`): any `duckduckgo.com/l/` href with an `uddg=` param is replaced by the decoded real URL (https/http only), so clicks go straight to the destination.
+- **Enter-to-search on homepage:** the DDG homepage search box is a `<textarea>` inside a `role="search"` form (it's a Next.js SPA), so pressing Enter inserted a newline instead of submitting ("cleared the text"). Added a keydown handler in `inject.js`: Enter in any proxied form with `role="search"` (or `id="searchbox_homepage"`) calls `requestSubmit()` so it routes through the existing form-interception → search. Guarded against shift/ctrl/alt/meta and IME composition.
+- Verified e2e over WS: DDG search results contain **0** `/l/` links and `result__a` hrefs resolve straight to `proxy://https://…`; homepage form preserved with `action="proxy://https://duckduckgo.com/"`, `role="search"`, textarea + submit intact.
+- `node --check` passes on `server.js` + `inject.js`.
+</details>
+
 <details><summary>2026-09-16 — Launcher update check</summary>
 
 **What:** `browser.html` now checks for a newer `launcher.html` on GitHub.
